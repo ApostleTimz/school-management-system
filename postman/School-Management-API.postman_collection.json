@@ -1,0 +1,5826 @@
+{
+  "info": {
+    "name": "School Management System API",
+    "_postman_id": "3f2a1c9e-0000-4000-8000-000000000001",
+    "description": "REST API for a School Management System (Node.js + Express, JWT, bcrypt, in-memory data).\n\nHOW TO RUN\n1. cd into the project and run `npm install`.\n2. Copy .env.example to .env and set ADMIN_EMAIL / ADMIN_PASSWORD / JWT_SECRET.\n3. Start the API with `npm start` (default http://localhost:4000/api).\n4. Import this collection into Postman or Thunder Client and run it TOP TO BOTTOM\n   (Collection Runner -> sequential). Tokens and record ids are captured by the test\n   scripts into collection variables, so the order matters.\n\nDEFAULT CREDENTIALS (see .env / README)\n  admin@school.test   / Admin@12345\n  teacher@school.test / Teacher@12345\n  student@school.test / Student@12345\n\nWHAT IS COVERED\n  Registration, login, JWT authentication, protected routes, role-based authorization\n  (401/403), full CRUD for students/teachers/classes/subjects, result management,\n  validation errors, conflict handling and global error handling.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "noauth"
+  },
+  "event": [],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4000/api",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "teacherToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "studentToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "teacherSelfToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "registeredStudentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "studentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "otherStudentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "createdStudentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "teacherId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "createdTeacherId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "classId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "otherClassId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "createdClassId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "subjectId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "createdSubjectId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "resultId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminUserId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "createdUserId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "00 Health",
+      "description": "Liveness probe.",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Public liveness probe. Returns uptime and a snapshot of the in-memory collections.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"reports the in-memory record counts\", function () {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.status).to.eql(\"ok\");",
+                  "  pm.expect(data.database).to.eql(\"in-memory\");",
+                  "  pm.expect(data.records).to.have.property(\"students\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 Authentication",
+      "description": "Registration, login and JWT handling.",
+      "item": [
+        {
+          "name": "Register - as a student (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Student\",\n  \"email\": \"postman.student@school.test\",\n  \"password\": \"Student@123\",\n  \"confirmPassword\": \"Student@123\",\n  \"role\": \"student\",\n  \"phone\": \"+2348060000001\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Public self-registration. A student profile record is created and linked automatically.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([201]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "if (body.data.token) { pm.collectionVariables.set(\"studentToken\", body.data.token); }",
+                  "if (body.data.profile.id) { pm.collectionVariables.set(\"registeredStudentId\", body.data.profile.id); }",
+                  "pm.test(\"returns a token and a linked profile\", function () {",
+                  "  pm.expect(body.data.token).to.be.a(\"string\");",
+                  "  pm.expect(body.data.user.role).to.eql(\"student\");",
+                  "  pm.expect(body.data.profile.userId).to.eql(body.data.user.id);",
+                  "});",
+                  "pm.test(\"never returns a password or hash\", function () {",
+                  "  pm.expect(pm.response.text).to.not.include(\"passwordHash\");",
+                  "  pm.expect(pm.response.text).to.not.include(\"$2b$\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register - as a teacher (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Teacher\",\n  \"email\": \"postman.teacher@school.test\",\n  \"password\": \"Teacher@123\",\n  \"confirmPassword\": \"Teacher@123\",\n  \"role\": \"teacher\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([201]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "if (body.data.token) { pm.collectionVariables.set(\"teacherSelfToken\", body.data.token); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register - validation error (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"\",\n  \"email\": \"not-an-email\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Missing name/email/password. All problems are reported in one 400 response.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([400]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"lists one entry per invalid field\", function () {",
+                  "  const body = pm.response.json();",
+                  "  const fields = body.errors.map((e) => e.field);",
+                  "  pm.expect(fields).to.include(\"name\");",
+                  "  pm.expect(fields).to.include(\"email\");",
+                  "  pm.expect(fields).to.include(\"password\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register - weak password (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Weak\",\n  \"email\": \"weak@school.test\",\n  \"password\": \"abc\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([400]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"explains the password policy\", function () {",
+                  "  pm.expect(pm.response.json().errors[0].message).to.match(/at least 8 characters/);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register - unexpected field (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sneaky\",\n  \"email\": \"sneaky@school.test\",\n  \"password\": \"Student@123\",\n  \"isAdmin\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([400]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"rejects fields outside the contract\", function () {",
+                  "  pm.expect(pm.response.json().errors[0].message).to.match(/Unexpected field/);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register - cannot self-register an admin (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sneaky Admin\",\n  \"email\": \"sneaky.admin@school.test\",\n  \"password\": \"Student@123\",\n  \"role\": \"admin\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([400]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"blocks privilege escalation through signup\", function () {",
+                  "  pm.expect(pm.response.json().errors[0].message).to.match(/role must be one of/);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register - duplicate email (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Duplicate\",\n  \"email\": \"admin@school.test\",\n  \"password\": \"Student@123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([409]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - admin (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@school.test\",\n  \"password\": \"Admin@12345\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Bootstrap administrator from .env (ADMIN_EMAIL / ADMIN_PASSWORD).",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "if (body.data.token) { pm.collectionVariables.set(\"adminToken\", body.data.token); }",
+                  "pm.test(\"returns a bearer session\", function () {",
+                  "  pm.expect(body.data.tokenType).to.eql(\"Bearer\");",
+                  "  pm.expect(body.data.user.role).to.eql(\"admin\");",
+                  "  pm.expect(body.data.expiresIn).to.be.a(\"string\");",
+                  "});",
+                  "pm.test(\"never leaks the password hash\", function () {",
+                  "  pm.expect(pm.response.text).to.not.include(\"$2b$\");",
+                  "  pm.expect(body.data.user.passwordHash).to.be.undefined;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - teacher (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"teacher@school.test\",\n  \"password\": \"Teacher@12345\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "if (body.data.token) { pm.collectionVariables.set(\"teacherToken\", body.data.token); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - student (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"student@school.test\",\n  \"password\": \"Student@12345\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "if (body.data.token) { pm.collectionVariables.set(\"studentToken\", body.data.token); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - wrong password (401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@school.test\",\n  \"password\": \"WrongPassword1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([401]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - unknown email (401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"ghost@school.test\",\n  \"password\": \"WrongPassword1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Identical message to a wrong password: the endpoint cannot be used to enumerate accounts.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([401]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"does not reveal whether the account exists\", function () {",
+                  "  pm.expect(pm.response.json().message).to.eql(\"Invalid email or password\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - validation error (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@school.test\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([400]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get current user (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"returns the authenticated identity only\", function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.user.email).to.eql(\"student@school.test\");",
+                  "  pm.expect(body.data.user.role).to.eql(\"student\");",
+                  "  pm.expect(body.data.user.passwordHash).to.be.undefined;",
+                  "  pm.expect(body.data.profile).to.be.an(\"object\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Change password (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"Teacher@123\",\n  \"newPassword\": \"Teacher@456\",\n  \"confirmNewPassword\": \"Teacher@456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/change-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "change-password"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teacherSelfToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Stateless JWT: the client discards the token. There is no server-side session to destroy.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 Setup (capture record ids)",
+      "description": "The 401/403 ownership checks need real record ids, so they are captured right after login.",
+      "item": [
+        {
+          "name": "Capture student + class ids (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/students?limit=100&sortBy=name&order=asc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "100"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "name"
+                },
+                {
+                  "key": "order",
+                  "value": "asc"
+                }
+              ]
+            },
+            "description": "Stores studentId, otherStudentId, classId and otherClassId for the requests below.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "if (body.data[0].id) { pm.collectionVariables.set(\"studentId\", body.data[0].id); }",
+                  "if (body.data[1].id) { pm.collectionVariables.set(\"otherStudentId\", body.data[1].id); }",
+                  "if (body.data[0].class ? body.data[0].class.id : null) { pm.collectionVariables.set(\"classId\", body.data[0].class ? body.data[0].class.id : null); }",
+                  "if (body.data.find((s) => s.class && s.class.id !== (pm.collectionVariables.get(\"classId\"))).class.id) { pm.collectionVariables.set(\"otherClassId\", body.data.find((s) => s.class && s.class.id !== (pm.collectionVariables.get(\"classId\"))).class.id); }",
+                  "pm.test(\"captured the ids used by the authorization checks\", function () {",
+                  "  pm.expect(pm.collectionVariables.get(\"studentId\")).to.be.a(\"string\");",
+                  "  pm.expect(pm.collectionVariables.get(\"otherStudentId\")).to.be.a(\"string\");",
+                  "  pm.expect(pm.collectionVariables.get(\"classId\")).to.be.a(\"string\");",
+                  "  pm.expect(pm.collectionVariables.get(\"otherClassId\")).to.be.a(\"string\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Capture teacher id (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/teachers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "teachers"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "if (body.data[0].id) { pm.collectionVariables.set(\"teacherId\", body.data[0].id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Capture subject id (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/subjects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subjects"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "if (body.data[0].id) { pm.collectionVariables.set(\"subjectId\", body.data[0].id); }"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 Authorization",
+      "description": "401 for missing/invalid tokens, 403 for insufficient role or ownership.",
+      "item": [
+        {
+          "name": "Protected route without a token (401)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/students",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([401]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"asks for a bearer token\", function () {",
+                  "  pm.expect(pm.response.json().message).to.match(/Authorization: Bearer/);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tampered token (401)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/students",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students"
+              ]
+            },
+            "description": "A well-formed token signed with the wrong key is rejected by signature verification.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmYWtlZSIsInJvbGUiOiJhZG1pbiJ9.not-a-valid-signature}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([401]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"rejects an unverifiable signature\", function () {",
+                  "  pm.expect(body.code).to.eql(\"TOKEN_INVALID\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Teacher creates a student (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Forbidden\",\n  \"email\": \"forbidden@school.test\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/students",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teacherToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([403]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"names the role that is required\", function () {",
+                  "  pm.expect(pm.response.json().message).to.match(/requires the admin role/);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Teacher deletes a student (403)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/students/{{studentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students",
+                "{{studentId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teacherToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([403]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Teacher manages users (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users"
+              ]
+            },
+            "description": "Account administration - including administrators - is admin-only.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teacherToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([403]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Student lists all students (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/students",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([403]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Student creates a result (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": \"{{studentId}}\",\n  \"subjectId\": \"{{subjectId}}\",\n  \"score\": 95,\n  \"term\": \"first\",\n  \"session\": \"2025/2026\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/results",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "results"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([403]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Student updates a subject (403)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Hacked\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/subjects/{{subjectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subjects",
+                "{{subjectId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([403]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Student reads another student (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/students/{{otherStudentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students",
+                "{{otherStudentId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([403]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"distinguishes forbidden from not-found\", function () {",
+                  "  pm.expect(pm.response.json().code).to.eql(\"NOT_STUDENT_OWNER\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Student reads a class they are not in (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/classes/{{otherClassId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "classes",
+                "{{otherClassId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([403]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Teacher deletes a result (403)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/results/{{resultId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "results",
+                "{{resultId}}"
+              ]
+            },
+            "description": "Teachers may create, view and update results, but only an admin may delete one.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teacherToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([403]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 Students",
+      "description": "Admin CRUD, plus the student self-service routes.",
+      "item": [
+        {
+          "name": "List students (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/students?limit=100&sortBy=name&order=asc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "100"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "name"
+                },
+                {
+                  "key": "order",
+                  "value": "asc"
+                }
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"returns pagination metadata\", function () {",
+                  "  pm.expect(body.meta).to.have.property(\"total\");",
+                  "  pm.expect(body.meta).to.have.property(\"totalPages\");",
+                  "  pm.expect(body.data.length).to.be.below(101);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create student (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Created Student\",\n  \"email\": \"postman.created@school.test\",\n  \"phone\": \"+2348060000002\",\n  \"classId\": \"{{classId}}\",\n  \"gender\": \"female\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/students",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([201]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "if (body.data.id) { pm.collectionVariables.set(\"createdStudentId\", body.data.id); }",
+                  "pm.test(\"echoes the resolved class relation\", function () {",
+                  "  const classId = pm.collectionVariables.get(\"classId\");",
+                  "  pm.expect(body.data.classId).to.eql(classId);",
+                  "  pm.expect(body.data.class.id).to.eql(classId);",
+                  "  pm.expect(body.data.createdAt).to.be.a(\"string\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get student by id (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/students/{{createdStudentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students",
+                "{{createdStudentId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update student (200)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Updated Student\",\n  \"phone\": \"+2348060000003\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/students/{{createdStudentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students",
+                "{{createdStudentId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"applies a partial update\", function () {",
+                  "  pm.expect(body.data.name).to.eql(\"Postman Updated Student\");",
+                  "  pm.expect(body.data.phone).to.eql(\"+2348060000003\");",
+                  "  pm.expect(body.data.email).to.eql(\"postman.created@school.test\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List students with search (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/students?search=postman&limit=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "postman"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Validation - malformed id (400)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/students/not-a-uuid",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students",
+                "not-a-uuid"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([400]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"requires a UUID\", function () {",
+                  "  pm.expect(pm.response.json().errors[0].message).to.match(/valid UUID/);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Validation - unknown id (404)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/students/11111111-2222-4333-8444-555555555555",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students",
+                "11111111-2222-4333-8444-555555555555"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([404]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard not-found message\", function () {",
+                  "  pm.expect(pm.response.json().message).to.match(/^Student not found/);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Validation - missing fields (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"No Email\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/students",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([400]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Validation - unknown class reference (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Orphan\",\n  \"email\": \"postman.orphan@school.test\",\n  \"classId\": \"11111111-2222-4333-8444-555555555555\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/students",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([400]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"enforces referential integrity\", function () {",
+                  "  pm.expect(pm.response.json().message).to.match(/Referenced class/);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Validation - duplicate email (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Duplicate\",\n  \"email\": \"postman.created@school.test\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/students",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([409]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete student (200)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/students/{{createdStudentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students",
+                "{{createdStudentId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"reports how many results were cascaded\", function () {",
+                  "  pm.expect(body.data).to.have.property(\"removedResults\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "My profile (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/students/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students",
+                "me"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "My class (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/students/me/class",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students",
+                "me",
+                "class"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "My results (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/students/me/results",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students",
+                "me",
+                "results"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"only ever contains the caller's own results\", function () {",
+                  "  pm.expect(body.data.length).to.be.above(0);",
+                  "  const mine = body.data[0].studentId;",
+                  "  pm.expect(body.data.every((r) => r.studentId === mine)).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Teacher reads a student (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/students/{{studentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students",
+                "{{studentId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teacherToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 Teachers",
+      "description": "Admin CRUD. Teachers read their own record at /api/teachers/me.",
+      "item": [
+        {
+          "name": "List teachers (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/teachers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "teachers"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create teacher (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Teacher Record\",\n  \"email\": \"postman.record@school.test\",\n  \"phone\": \"+2348070000001\",\n  \"subject\": \"Geography\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/teachers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "teachers"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([201]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "if (body.data.id) { pm.collectionVariables.set(\"createdTeacherId\", body.data.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get teacher by id (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/teachers/{{createdTeacherId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "teachers",
+                "{{createdTeacherId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update teacher (200)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subject\": \"History\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/teachers/{{createdTeacherId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "teachers",
+                "{{createdTeacherId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"updates the subject\", function () { pm.expect(body.data.subject).to.eql(\"History\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Validation - duplicate email (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Duplicate\",\n  \"email\": \"postman.record@school.test\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/teachers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "teachers"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([409]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "My profile (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/teachers/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "teachers",
+                "me"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teacherToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete teacher (200)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/teachers/{{createdTeacherId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "teachers",
+                "{{createdTeacherId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Student cannot list teachers (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/teachers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "teachers"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([403]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06 Classes",
+      "description": "Admin CRUD, teacher read access, student read of their own class.",
+      "item": [
+        {
+          "name": "List classes (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/classes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "classes"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"includes teacher and student counts\", function () {",
+                  "  pm.expect(body.data[0]).to.have.property(\"studentCount\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create class (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"SSS 3 - Epsilon\",\n  \"gradeLevel\": 11,\n  \"teacherId\": \"{{teacherId}}\",\n  \"capacity\": 35,\n  \"room\": \"Block F-12\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/classes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "classes"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([201]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "if (body.data.id) { pm.collectionVariables.set(\"createdClassId\", body.data.id); }",
+                  "pm.test(\"links the form teacher\", function () {",
+                  "  pm.expect(body.data.teacher.id).to.eql(pm.collectionVariables.get(\"teacherId\"));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get class by id (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/classes/{{createdClassId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "classes",
+                "{{createdClassId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update class (200)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"room\": \"Block G-01\",\n  \"capacity\": 40\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/classes/{{createdClassId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "classes",
+                "{{createdClassId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Validation - duplicate name (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"sss 3 - epsilon\",\n  \"gradeLevel\": 11\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/classes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "classes"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([409]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Validation - invalid grade level (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Grade 99\",\n  \"gradeLevel\": 99\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/classes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "classes"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([400]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "My class (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/classes/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "classes",
+                "me"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Teacher lists classes (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/classes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "classes"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teacherToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete class (200)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/classes/{{createdClassId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "classes",
+                "{{createdClassId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"reports the students it released\", function () {",
+                  "  pm.expect(body.data).to.have.property(\"releasedStudents\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "07 Subjects",
+      "description": "Every role may read the curriculum; only admins may change it.",
+      "item": [
+        {
+          "name": "List subjects (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/subjects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subjects"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create subject (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Agricultural Science\",\n  \"code\": \"AGR101\",\n  \"credits\": 3,\n  \"description\": \"Crop and animal production\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/subjects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subjects"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([201]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "if (body.data.id) { pm.collectionVariables.set(\"createdSubjectId\", body.data.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get subject by id (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/subjects/{{createdSubjectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subjects",
+                "{{createdSubjectId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update subject (200)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isActive\": false,\n  \"credits\": 4\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/subjects/{{createdSubjectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subjects",
+                "{{createdSubjectId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Validation - duplicate code (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Duplicate\",\n  \"code\": \"AGR101\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/subjects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subjects"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([409]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Validation - invalid code format (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Bad Code\",\n  \"code\": \"lowercase-code\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/subjects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subjects"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([400]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Student lists subjects (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/subjects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subjects"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Teacher lists subjects (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/subjects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subjects"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teacherToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete subject (200)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/subjects/{{createdSubjectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subjects",
+                "{{createdSubjectId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "08 Results",
+      "description": "Teachers create and update marks; grades are derived from the score.",
+      "item": [
+        {
+          "name": "Create result as teacher (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": \"{{studentId}}\",\n  \"subjectId\": \"{{subjectId}}\",\n  \"score\": 78,\n  \"term\": \"second\",\n  \"session\": \"2025/2026\",\n  \"remarks\": \"Excellent progress\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/results",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "results"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teacherToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([201]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "if (body.data.id) { pm.collectionVariables.set(\"resultId\", body.data.id); }",
+                  "pm.test(\"derives the grade from the score\", function () {",
+                  "  pm.expect(body.data.grade).to.eql(\"A\");",
+                  "  pm.expect(body.data.remark).to.eql(\"Distinction\");",
+                  "});",
+                  "pm.test(\"resolves the student, subject and class relations\", function () {",
+                  "  pm.expect(body.data.student.id).to.eql(pm.collectionVariables.get(\"studentId\"));",
+                  "  pm.expect(body.data.subject.id).to.eql(pm.collectionVariables.get(\"subjectId\"));",
+                  "  pm.expect(body.data.recordedBy.role).to.eql(\"teacher\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get result by id (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/results/{{resultId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "results",
+                "{{resultId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List results as admin (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/results?limit=50&sortBy=score&order=desc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "results"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "score"
+                },
+                {
+                  "key": "order",
+                  "value": "desc"
+                }
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List results filtered by student (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/results?studentId={{studentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "results"
+              ],
+              "query": [
+                {
+                  "key": "studentId",
+                  "value": "{{studentId}}"
+                }
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teacherToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"only returns the requested student\", function () {",
+                  "  const studentId = pm.collectionVariables.get(\"studentId\");",
+                  "  pm.expect(body.data.every((r) => r.studentId === studentId)).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update result as teacher (200)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"score\": 42\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/results/{{resultId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "results",
+                "{{resultId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teacherToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"recalculates the grade\", function () {",
+                  "  pm.expect(body.data.score).to.eql(42);",
+                  "  pm.expect(body.data.grade).to.eql(\"F\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Validation - score out of range (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": \"{{studentId}}\",\n  \"subjectId\": \"{{subjectId}}\",\n  \"score\": 150,\n  \"term\": \"third\",\n  \"session\": \"2025/2026\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/results",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "results"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teacherToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([400]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Validation - grade inconsistent with score (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": \"{{studentId}}\",\n  \"subjectId\": \"{{subjectId}}\",\n  \"score\": 30,\n  \"grade\": \"A\",\n  \"term\": \"third\",\n  \"session\": \"2025/2026\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/results",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "results"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teacherToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([400]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"refuses to file a grade that contradicts the score\", function () {",
+                  "  pm.expect(pm.response.json().errors[0].message).to.match(/inconsistent with score/);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Validation - invalid term (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": \"{{studentId}}\",\n  \"subjectId\": \"{{subjectId}}\",\n  \"score\": 60,\n  \"term\": \"fourth\",\n  \"session\": \"2025/2026\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/results",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "results"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teacherToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([400]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Validation - invalid session format (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": \"{{studentId}}\",\n  \"subjectId\": \"{{subjectId}}\",\n  \"score\": 60,\n  \"term\": \"first\",\n  \"session\": \"2025\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/results",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "results"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teacherToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([400]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Validation - duplicate result (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": \"{{studentId}}\",\n  \"subjectId\": \"{{subjectId}}\",\n  \"score\": 60,\n  \"term\": \"second\",\n  \"session\": \"2025/2026\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/results",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "results"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{teacherToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([409]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Student sees only their own results (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/results?limit=100",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "results"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "100"
+                }
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"scope is enforced server-side\", function () {",
+                  "  const ids = new Set(body.data.map((r) => r.studentId));",
+                  "  pm.expect(ids.size).to.eql(1);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Student cannot widen the scope with a query parameter (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/results?studentId={{otherStudentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "results"
+              ],
+              "query": [
+                {
+                  "key": "studentId",
+                  "value": "{{otherStudentId}}"
+                }
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"the query string cannot override the session scope\", function () {",
+                  "  const ids = new Set(body.data.map((r) => r.studentId));",
+                  "  pm.expect(ids.size).to.eql(1);",
+                  "  pm.expect(ids.has(pm.collectionVariables.get(\"otherStudentId\"))).to.be.false;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete result as admin (200)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/results/{{resultId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "results",
+                "{{resultId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "09 Users (admin only)",
+      "description": "The only route that can create or change an administrator.",
+      "item": [
+        {
+          "name": "List users (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users?limit=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "if (body.data.find((u) => u.role === \"admin\").id) { pm.collectionVariables.set(\"adminUserId\", body.data.find((u) => u.role === \"admin\").id); }",
+                  "pm.test(\"never returns password hashes\", function () {",
+                  "  pm.expect(pm.response.text).to.not.include(\"passwordHash\");",
+                  "  pm.expect(body.data.every((u) => u.passwordHash === undefined)).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List users filtered by role (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users?role=teacher",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "role",
+                  "value": "teacher"
+                }
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"applies the filter\", function () { pm.expect(body.data.every((u) => u.role === \"teacher\")).to.be.true; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create an administrator (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Principal\",\n  \"email\": \"postman.principal@school.test\",\n  \"password\": \"Principal@123\",\n  \"role\": \"admin\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([201]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "if (body.data.id) { pm.collectionVariables.set(\"createdUserId\", body.data.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Change a role (200)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"teacher\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/{{createdUserId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{{createdUserId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Validation - invalid role (400)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"wizard\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/{{createdUserId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{{createdUserId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([400]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Validation - weak password (400)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"weak\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/{{createdUserId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{{createdUserId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([400]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin cannot delete their own account (400)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/{{adminUserId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{{adminUserId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([400]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"prevents lock-out\", function () { pm.expect(pm.response.json().code).to.eql(\"SELF_DELETION\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete user (200)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/{{createdUserId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{{createdUserId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  ""
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "10 Error handling",
+      "description": "Every failure uses the same response shape.",
+      "item": [
+        {
+          "name": "Unknown route (404)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/not-a-real-endpoint",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "not-a-real-endpoint"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([404]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard error envelope\", function () {",
+                  "  pm.expect(body.success).to.eql(false);",
+                  "  pm.expect(body.message).to.match(/Route not found/);",
+                  "  pm.expect(body).to.have.property(\"code\");",
+                  "  pm.expect(body).to.have.property(\"requestId\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Malformed JSON (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\": \"admin@school.test\", \"password\":",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Send a truncated JSON document.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([400]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"reports a parse error instead of crashing\", function () {",
+                  "  pm.expect(body.code).to.eql(\"INVALID_JSON\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Empty body where fields are required (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([400]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"lists every missing field\", function () {",
+                  "  pm.expect(body.errors.map((e) => e.field)).to.include.members([\"email\", \"password\"]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Security headers (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"responds with the expected status\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});",
+                  "",
+                  "pm.test(\"uses the standard response envelope\", function () {",
+                  "  pm.expect(body).to.have.property(\"success\");",
+                  "});",
+                  "",
+                  "pm.test(\"sets hardening headers\", function () {",
+                  "  pm.expect(pm.response.headers.get(\"x-content-type-options\")).to.eql(\"nosniff\");",
+                  "  pm.expect(pm.response.headers.get(\"x-powered-by\")).to.eql(null);",
+                  "  pm.expect(pm.response.headers.get(\"x-request-id\")).to.be.a(\"string\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
